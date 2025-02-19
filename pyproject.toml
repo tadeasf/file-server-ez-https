@@ -1,6 +1,6 @@
 [project]
 name = "file-server-auto-https"
-version = "0.1.0"
+version = "0.2.0"
 description = "File server with automatic HTTPS and Cloudflare DNS management"
 authors = [
     { name = "Tadeas Fort", email = "business@tadeasfort.com" }

@@ -4,10 +4,12 @@
 # last locked with the following flags:
 #   pre: false
 #   features: []
-#   all-features: false
-#   with-sources: false
+#   all-features: true
+#   with-sources: true
 #   generate-hashes: false
-#   universal: false
+#   universal: true
+
+--index-url https://pypi.org/simple/
 
 -e file:.
 annotated-types==0.7.0
@@ -19,6 +21,11 @@ charset-normalizer==3.4.1
 click==8.1.8
     # via file-server-auto-https
     # via typer
+colorama==0.4.6 ; sys_platform == 'win32' or platform_system == 'Windows'
+    # via click
+    # via pytest
+coverage==7.6.12
+    # via pytest-cov
 idna==3.10
     # via requests
 iniconfig==2.0.0
@@ -38,6 +45,13 @@ pydantic-core==2.27.2
 pygments==2.19.1
     # via rich
 pytest==8.3.4
+    # via file-server-auto-https
+    # via pytest-cov
+    # via pytest-mock
+pytest-cov==6.0.0
+    # via file-server-auto-https
+pytest-mock==3.14.0
+    # via file-server-auto-https
 python-dotenv==1.0.1
     # via file-server-auto-https
 requests==2.32.3
