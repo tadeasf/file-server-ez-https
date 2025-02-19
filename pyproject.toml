@@ -1,0 +1,39 @@
+[project]
+name = "file-server-auto-https"
+version = "0.1.0"
+description = "File server with automatic HTTPS and Cloudflare DNS management"
+authors = [
+    { name = "Tadeas Fort", email = "business@tadeasfort.com" }
+]
+dependencies = [
+    "click>=8.1.7",
+    "python-dotenv>=1.0.1",
+    "requests>=2.31.0",
+    "pydantic>=2.5.0",
+    "rich>=13.7.0",
+    "shortuuid>=1.0.11",
+    "typer>=0.15.1",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+license = { text = "GPL-3.0" }
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0"
+]
+
+[project.scripts]
+file-server = "file_server_auto_https.cli:main"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "pytest>=8.3.4",
+]
