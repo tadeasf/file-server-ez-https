@@ -1,7 +1,6 @@
 """
 Command module for starting the file server with automatic HTTPS.
 """
-import os
 import signal
 import sys
 from pathlib import Path
@@ -13,7 +12,8 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from ...cloudflare.client import CloudflareClient
 from ...cloudflare.exceptions import CloudflareError
-from ...server import FileServer, find_free_port
+from ...lib.server.file_server import FileServer
+from ...lib.utils.ip import find_free_port
 
 app = typer.Typer()
 console = Console()
