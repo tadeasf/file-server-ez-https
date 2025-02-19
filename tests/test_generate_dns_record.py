@@ -7,6 +7,7 @@ from file_server_auto_https.lib.cloudflare.cloudflare_handler import (
     CloudflareClient,
     CloudflareConfig,
     DNSRecord,
+    CloudflareError,
     generate_subdomain
 )
 
@@ -21,13 +22,35 @@ def mock_config():
     )
 
 @pytest.fixture
-def mock_client(mock_config):
+def mock_success_response():
+    """Fixture for successful API response."""
+    return {
+        "success": True,
+        "result": {
+            "id": "test-id",
+            "name": "test.example.com",
+            "type": "A",
+            "content": "1.1.1.1",
+            "proxied": True,
+            "ttl": 1
+        }
+    }
+
+@pytest.fixture
+def mock_client(mock_config, mock_success_response):
     """Fixture for mock Cloudflare client."""
     with patch('requests.post') as mock_post, \
-         patch('requests.get') as mock_get:
+         patch('requests.get') as mock_get, \
+         patch('requests.delete') as mock_delete:
         
-        mock_post.return_value.json.return_value = {"success": True, "result": {"id": "test-id"}}
-        mock_get.return_value.json.return_value = {"result": []}
+        # Configure mock responses
+        mock_response = MagicMock()
+        mock_response.json.return_value = mock_success_response
+        mock_response.ok = True
+        
+        mock_post.return_value = mock_response
+        mock_get.return_value = mock_response
+        mock_delete.return_value = mock_response
         
         client = CloudflareClient(mock_config)
         yield client
@@ -52,7 +75,7 @@ def test_generate_subdomain_uniqueness():
     # Should have same length if all are unique
     assert len(subdomains) == len(unique_subdomains)
 
-def test_create_dns_record(mock_client):
+def test_create_dns_record(mock_client, mock_success_response):
     """Test creating a DNS record."""
     record = DNSRecord(
         name="test.example.com",
@@ -61,27 +84,50 @@ def test_create_dns_record(mock_client):
     )
     
     result = mock_client.create_dns_record(record)
+    assert result == mock_success_response
     assert result["success"] is True
     assert "result" in result
 
 def test_create_dns_record_error(mock_client):
     """Test error handling when creating a DNS record."""
     with patch('requests.post') as mock_post:
-        mock_post.return_value = MagicMock()
-        mock_post.return_value.raise_for_status.side_effect = Exception("API Error")
+        # Configure mock to return an error response
+        mock_response = MagicMock()
+        mock_response.ok = False
+        mock_response.status_code = 400
+        mock_response.reason = "Bad Request"
+        mock_response.json.return_value = {
+            "success": False,
+            "errors": [{"code": 1000, "message": "API Error"}]
+        }
+        mock_post.return_value = mock_response
         
         record = DNSRecord(
             name="test.example.com",
             content="1.1.1.1"
         )
         
-        with pytest.raises(Exception):
+        with pytest.raises(CloudflareError) as exc_info:
             mock_client.create_dns_record(record)
+        
+        assert "400 Bad Request" in str(exc_info.value)
 
-def test_list_dns_records(mock_client):
+def test_list_dns_records(mock_client, mock_success_response):
     """Test listing DNS records."""
-    records = mock_client.list_dns_records()
-    assert isinstance(records, list)
+    with patch('requests.get') as mock_get:
+        # Configure mock to return a list of records
+        mock_response = MagicMock()
+        mock_response.ok = True
+        mock_response.json.return_value = {
+            "success": True,
+            "result": [mock_success_response["result"]]
+        }
+        mock_get.return_value = mock_response
+        
+        records = mock_client.list_dns_records()
+        assert isinstance(records, list)
+        assert len(records) == 1
+        assert records[0]["id"] == "test-id"
 
 def test_dns_record_validation():
     """Test DNS record validation."""
@@ -97,3 +143,25 @@ def test_dns_record_validation():
     assert record.type == "A"  # Default value
     assert record.proxied is True  # Default value
     assert record.ttl == 1  # Default value
+    
+    # Test TTL validation
+    with pytest.raises(ValueError):
+        DNSRecord(
+            name="test.example.com",
+            content="1.1.1.1",
+            ttl=30  # Too low
+        )
+    
+    # Test empty name validation
+    with pytest.raises(ValueError):
+        DNSRecord(
+            name="",
+            content="1.1.1.1"
+        )
+    
+    # Test empty content validation
+    with pytest.raises(ValueError):
+        DNSRecord(
+            name="test.example.com",
+            content=""
+        )
