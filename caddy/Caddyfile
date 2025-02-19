@@ -1,0 +1,63 @@
+{
+	email business@tadeasfort.com
+	log {
+		output file /var/log/caddy/access.log
+		format json
+	}
+
+	# Debug options (comment out in production)
+	debug
+
+	# Cache configuration
+	cache {
+		redis {
+			url localhost:6379
+		}
+		ttl 3600s
+		allowed_http_verbs GET HEAD
+	}
+}
+
+# Global configurations for Cloudflare DNS
+(cloudflare) {
+	tls {
+		dns cloudflare {
+			api_token {env.CLOUDFLARE_API_KEY}
+		}
+	}
+}
+
+# Example domain configuration
+jevrej.cz {
+	import cloudflare
+
+	# Enable Prometheus metrics
+	metrics /metrics
+
+	# File server for current directory
+	file_server {
+		root .
+		browse
+	}
+
+	# Enable caching for this site
+	cache
+
+	# Rate limiting
+	rate_limit {
+		zone global {
+			events 10
+			window 1s
+		}
+	}
+
+	# Security headers
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		X-XSS-Protection "1; mode=block"
+		# Remove Server header
+		-Server
+	}
+}
