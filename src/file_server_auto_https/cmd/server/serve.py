@@ -13,7 +13,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from ...cloudflare.client import CloudflareClient
 from ...cloudflare.exceptions import CloudflareError
-from ...server.file_server import FileServer, find_free_port
+from ...server import FileServer, find_free_port
 
 app = typer.Typer()
 console = Console()
