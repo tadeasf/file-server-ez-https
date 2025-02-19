@@ -1,170 +1,203 @@
-# file-server-auto-https
+# File Server with Auto HTTPS
 
-A CLI tool for creating file servers with automatic HTTPS using Cloudflare DNS. This tool automatically generates subdomains on your domain and configures Cloudflare's Flexible SSL for secure access.
+A Python-based file server that automatically sets up HTTPS using Caddy v2 as a reverse proxy and Cloudflare DNS management.
 
 ## Features
 
-- Automatic subdomain generation for your domain
-- Cloudflare DNS management
-- Public and local IP detection
-- Flexible SSL through Cloudflare
-- Rich CLI interface with detailed feedback
-
-## Prerequisites
-
-- Python 3.8 or higher
-- A Cloudflare account
-- A domain managed by Cloudflare
-- Cloudflare API credentials
+- 🔒 Automatic HTTPS via Caddy v2
+- 🌐 Public and local IP address support
+- 🎯 Random or custom subdomain generation
+- 📁 Directory listing control
+- 🔄 CORS support for cross-origin requests
+- 🚦 Graceful start/stop handling
+- 🛡️ Cloudflare integration with flexible SSL modes
 
 ## Installation
 
-1. Clone the repository:
+### 1. Install the Python package
 ```bash
-git clone https://github.com/yourusername/file-server-auto-https.git
-cd file-server-auto-https
+pip install file-server-auto-https
 ```
 
-2. Install dependencies:
-```bash
-pip install -e .
-```
+### 2. Install Caddy v2
+Follow the [official Caddy installation guide](https://caddyserver.com/docs/install).
 
 ## Configuration
 
-Create a `.env` file in the project root with your Cloudflare credentials:
+### 1. Create a `.env` file with your Cloudflare credentials:
 
 ```env
-CLOUDFLARE_EMAIL=your-email@example.com
-CLOUDFLARE_API_KEY=your-api-key
-CLOUDFLARE_ZONE_ID=your-zone-id  # Zone ID for your domain
-BASE_DOMAIN=your-domain.com
+CLOUDFLARE_EMAIL=your.email@example.com
+CLOUDFLARE_API_KEY=your_api_key
+CLOUDFLARE_ZONE_ID=your_zone_id
+BASE_DOMAIN=your.domain.com
 ```
 
-To find your Zone ID:
-1. Log into your Cloudflare dashboard
-2. Select your domain
-3. The Zone ID is shown in the Overview tab's API section
+### 2. Configure Caddy (optional)
+
+Default configuration is provided, but you can customize it:
+
+```json
+{
+  "apps": {
+    "http": {
+      "servers": {
+        "srv0": {
+          "listen": [":443"],
+          "routes": [
+            {
+              "handle": [{
+                "handler": "reverse_proxy",
+                "upstreams": [{"dial": "localhost:8000"}]
+              }]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+```
 
 ## Usage
 
-The tool provides a CLI interface with various commands:
-
-### Create DNS Record
-
-Create a new subdomain pointing to your server:
+### Basic File Server (HTTP Only)
 
 ```bash
-# Basic usage (auto-detects public IP)
+# Serve current directory on port 8000
+file-server serve
+
+# Serve specific directory with custom port
+file-server serve /path/to/directory --port 8080
+
+# Disable directory listing
+file-server serve --no-directory-listing
+```
+
+### Secure Server with Caddy (HTTPS)
+
+```bash
+# Start with automatic HTTPS
+file-server serve --with-caddy
+
+# Use specific domain
+file-server serve --with-caddy --domain mysite.example.com
+
+# Custom Caddy config
+file-server serve --with-caddy --caddy-config /path/to/config.json
+```
+
+### Cloudflare Integration
+
+#### 1. Create DNS Record
+```bash
+# Create with auto-generated subdomain
 file-server dns create
 
-# Specify custom IP
-file-server dns create --ip 1.2.3.4
-
-# Use local IP instead of public
-file-server dns create --no-use-public-ip
-
-# Specify custom subdomain
+# Create with specific subdomain
 file-server dns create --subdomain myserver
 
-# Custom subdomain length (for random generation)
-file-server dns create --length 12
-
-# Disable Cloudflare proxying
-file-server dns create --no-proxied
+# Create with specific IP and Cloudflare proxy settings
+file-server dns create --ip 1.2.3.4 --proxied --ttl 3600
 ```
 
-### List DNS Records
-
-View existing DNS records:
-
+#### 2. List DNS Records
 ```bash
 # List records created by this tool
-file-server dns list-records
+file-server dns list
 
-# List all DNS records in the zone
-file-server dns list-records --show-all
+# List all DNS records
+file-server dns list --show-all
 ```
 
-### Delete DNS Record
-
-Delete a DNS record by its ID:
-
+#### 3. Delete DNS Record
 ```bash
-# Delete a record (get ID from list-records command)
 file-server dns delete RECORD_ID
 ```
 
-### Command Options
+## API Usage
 
-#### Create
-- `--ip`: Specify IP address manually
-- `--use-public-ip`: Use public IP (default: True)
-- `--subdomain`: Specify custom subdomain
-- `--length`: Length of random subdomain (default: 8)
-- `--proxied`: Enable/disable Cloudflare proxying (default: True)
+### Basic File Server
+```python
+from file_server_auto_https import FileServer
 
-#### List
-- `--show-all`: Show all records, not just those created by this tool
+# Start a basic file server
+with FileServer("./", port=8000) as server:
+    print(f"Server running at {server.url}")
+```
+
+### With Caddy Integration
+```python
+from file_server_auto_https import FileServer, CaddyManager
+
+# Start file server with Caddy reverse proxy
+with FileServer("./", port=8000) as server:
+    with CaddyManager(target_port=8000, domain="mysite.example.com") as caddy:
+        print(f"Server running at https://{caddy.domain}")
+```
+
+### Cloudflare DNS Management
+```python
+from file_server_auto_https import CloudflareClient, DNSRecord
+
+# Create a DNS record
+client = CloudflareClient()
+record = DNSRecord(
+    name="myserver.example.com",
+    content="1.2.3.4",
+    proxied=True
+)
+result = client.create_dns_record(record)
+```
+
+## Cloudflare SSL/TLS Modes
+
+The server supports different Cloudflare SSL modes:
+
+### Flexible SSL (Default)
+- HTTPS between visitor and Cloudflare
+- HTTP between Cloudflare and your server
+- No SSL certificate required on your server
+- Only works on port 443
+- Uses Caddy as reverse proxy
+
+```bash
+file-server serve --with-caddy --ssl-mode flexible
+```
+
+### Full SSL
+- HTTPS everywhere
+- Requires SSL certificate (automatically handled by Caddy)
+- More secure than Flexible
+
+```bash
+file-server serve --with-caddy --ssl-mode full
+```
+
+### Full (Strict) SSL
+- HTTPS everywhere with certificate validation
+- Most secure option
+- Requires valid SSL certificate (automatically handled by Caddy)
+
+```bash
+file-server serve --with-caddy --ssl-mode strict
+```
 
 ## Development
 
 ### Running Tests
-
-The project uses pytest for testing. To run the tests:
-
 ```bash
-# Install development dependencies
-pip install -e ".[dev]"
-
-# Run all tests
-pytest
-
-# Run tests with coverage
-pytest --cov=file_server_auto_https
-
-# Run specific test file
-pytest tests/test_generate_dns_record.py
+pytest tests/
 ```
 
-### Test Structure
-
-- `test_generate_dns_record.py`: Tests for DNS record generation
-  - Subdomain generation
-  - DNS record creation
-  - Error handling
-  - Configuration validation
-
-## SSL/TLS
-
-This project uses Cloudflare's Flexible SSL:
-- HTTPS between visitors and Cloudflare
-- HTTP between Cloudflare and your server
-- No need to generate/manage SSL certificates
-- Enabled automatically when `proxied=True`
-
-## Troubleshooting
-
-### DNS Record Not Appearing
-If your DNS record isn't appearing in Cloudflare:
-
-1. Check your credentials:
-   ```bash
-   # List existing records to verify API access
-   file-server dns list-records --show-all
-   ```
-
-2. Verify the API response:
-   The create command now shows the raw API response for debugging.
-
-3. Common issues:
-   - Incorrect Zone ID
-   - API key permissions (needs DNS Write access)
-   - Rate limiting
-   - Invalid subdomain format
-
-If you're still having issues, check the error messages in the command output for more details.
+### Contributing
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-GPL-3.0
+This project is licensed under the MIT License - see the LICENSE file for details.
+
