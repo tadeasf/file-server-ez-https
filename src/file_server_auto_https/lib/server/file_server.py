@@ -8,6 +8,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from functools import partial
 import mimetypes
 from rich.console import Console
+from ..utils.config import server as server_config
 
 console = Console()
 
@@ -41,18 +42,11 @@ class FileServer:
     def __init__(
         self,
         directory: Union[str, Path],
-        host: str = "0.0.0.0",
-        port: int = 8000,
-        directory_listing: bool = True
+        host: str = server_config.default_host,
+        port: int = server_config.default_port,
+        directory_listing: bool = server_config.directory_listing
     ):
-        """Initialize the file server.
-        
-        Args:
-            directory: Root directory to serve files from
-            host: Host to bind to (default: "0.0.0.0")
-            port: Port to listen on (default: 8000)
-            directory_listing: Whether to allow directory listing (default: True)
-        """
+        """Initialize the file server."""
         self.directory = str(Path(directory).resolve())
         self.host = host
         self.port = port

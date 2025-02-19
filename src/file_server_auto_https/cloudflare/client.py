@@ -1,4 +1,16 @@
 """Cloudflare client module."""
-from ..lib.cloudflare.cloudflare_handler import CloudflareClient, CloudflareError, DNSRecord
+from ..lib.cloudflare.cloudflare_handler import (
+    CloudflareClient,
+    CloudflareError,
+    DNSRecord,
+    CloudflareConfig,
+    DNSRecordSettings
+)
 
-__all__ = ['CloudflareClient', 'CloudflareError', 'DNSRecord'] 
+__all__ = [
+    'CloudflareClient',
+    'CloudflareError',
+    'DNSRecord',
+    'CloudflareConfig',
+    'DNSRecordSettings'
+] 

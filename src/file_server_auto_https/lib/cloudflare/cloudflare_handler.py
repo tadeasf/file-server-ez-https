@@ -1,14 +1,11 @@
 """Cloudflare API handler module."""
-import os
 from typing import Optional, Dict, List, Any
 import string
 import random
 import requests
 from pydantic import BaseModel, Field, field_validator
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+from ..utils.config import cloudflare as cf_config
 
 class CloudflareError(Exception):
     """Custom exception for Cloudflare API errors."""
@@ -70,39 +67,15 @@ class DNSRecord(BaseModel):
 class CloudflareClient:
     """Client for interacting with Cloudflare API."""
     
-    def __init__(self, config: Optional[CloudflareConfig] = None):
-        """Initialize the client with config or load from environment."""
-        self.config = config or self._load_config()
+    def __init__(self):
+        """Initialize the client with config."""
+        self.config = cf_config
         self.base_url = "https://api.cloudflare.com/client/v4"
         self.headers = {
             "X-Auth-Email": self.config.email,
             "X-Auth-Key": self.config.api_key,
             "Content-Type": "application/json"
         }
-
-    @staticmethod
-    def _load_config() -> CloudflareConfig:
-        """Load configuration from environment variables."""
-        required_vars = {
-            "email": "CLOUDFLARE_EMAIL",
-            "api_key": "CLOUDFLARE_API_KEY",
-            "zone_id": "CLOUDFLARE_ZONE_ID",
-            "base_domain": "BASE_DOMAIN"
-        }
-        
-        config_data = {}
-        missing_vars = []
-        
-        for key, env_var in required_vars.items():
-            value = os.getenv(env_var)
-            if not value:
-                missing_vars.append(env_var)
-            config_data[key] = value
-        
-        if missing_vars:
-            raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
-        
-        return CloudflareConfig(**config_data)
 
     def _handle_response(self, response: requests.Response) -> Dict:
         """Handle API response and raise appropriate errors."""
