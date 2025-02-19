@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
+import sys
 import subprocess
 from pathlib import Path
 
 """
-This script runs before push to ensure the .env file is encrypted,
-then decrypts it after the push is complete.
+This script ensures the .env file remains encrypted during push
+and handles decryption afterward only if we encrypted it during commit.
 
 To install the dotenvx CLI, run:
 npm install -g @dotenvx/dotenvx
 """
-def handle_env():
+
+def verify_env_encryption():
     env_path = Path('.env')
+    encryption_marker = Path('.env.encrypted')
     
     # Check if .env exists
     if not env_path.exists():
@@ -18,25 +21,30 @@ def handle_env():
         return 0
     
     try:
-        # First ensure it's encrypted for the push
-        print("🔒 Ensuring .env is encrypted for push...")
-        encrypt_result = subprocess.run(['dotenvx', 'encrypt'], 
-                                      capture_output=True, 
-                                      text=True)
-        
-        if encrypt_result.returncode != 0:
-            print("❌ Error encrypting .env file:")
-            print(encrypt_result.stderr)
+        # Verify the file is encrypted
+        with open(env_path, 'r') as f:
+            content = f.read()
+            
+        if 'encrypted:' not in content:
+            print("❌ ERROR: Attempting to push unencrypted .env file!")
+            print("🔒 Please commit your changes first to trigger encryption")
             return 1
         
-        # Allow the push to proceed
-        print("✅ .env is encrypted, proceeding with push...")
+        print("✅ Verified .env is encrypted for push")
         
-        # Schedule the decryption to happen after push
-        # We use a subprocess to run the decrypt after this script exits
-        subprocess.Popen(['sh', '-c', 'sleep 2 && dotenvx decrypt'], 
-                        stdout=subprocess.PIPE, 
-                        stderr=subprocess.PIPE)
+        # If we have the encryption marker, schedule decryption after push
+        if encryption_marker.exists():
+            print("🔓 Scheduling decryption after push...")
+            
+            # Remove the marker file
+            encryption_marker.unlink()
+            
+            # Schedule decryption to happen after push completes
+            subprocess.Popen(
+                ['sh', '-c', 'sleep 2 && dotenvx decrypt && echo "✅ .env decrypted after push"'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
         
         return 0
         
@@ -46,6 +54,6 @@ def handle_env():
         return 1
 
 if __name__ == '__main__':
-    print("🔐 Running pre-push hook for .env handling...")
-    handle_env()
+    print("🔐 Running pre-push hook for .env verification...")
+    sys.exit(verify_env_encryption())
 

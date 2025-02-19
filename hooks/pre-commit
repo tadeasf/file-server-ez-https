@@ -4,9 +4,9 @@ import subprocess
 from pathlib import Path
 
 """
-This script checks if the .env file is properly encrypted.
-It will encrypt the .env file if it is not already encrypted.
-It will also stage the encrypted .env file for commit.
+This script ensures the .env file is encrypted before any commit.
+If unencrypted sensitive data is found, it will encrypt the file
+and stage it for commit.
 
 To install the dotenvx CLI, run:
 npm install -g @dotenvx/dotenvx
@@ -14,6 +14,20 @@ npm install -g @dotenvx/dotenvx
 To include the hook in your git repo set git config core.hooksPath hooks
 `git config core.hooksPath hooks`
 """
+
+def is_sensitive_data_present(content):
+    """Check for common patterns of sensitive data."""
+    sensitive_patterns = [
+        '_KEY=', 
+        '_SECRET=',
+        '_TOKEN=',
+        '_PASSWORD=',
+        'API_KEY=',
+        'PRIVATE_KEY='
+    ]
+    return any(pattern in content and 'encrypted:' not in content 
+              for pattern in sensitive_patterns)
+
 def check_env_encryption():
     env_path = Path('.env')
     
@@ -26,9 +40,9 @@ def check_env_encryption():
     with open(env_path, 'r') as f:
         content = f.read()
     
-    # Check for unencrypted API keys
-    if 'OPENAI_API_KEY=' in content and 'encrypted:' not in content:
-        print("⚠️  WARNING: Unencrypted API key detected in .env")
+    # Check for any unencrypted sensitive data
+    if is_sensitive_data_present(content):
+        print("⚠️  WARNING: Unencrypted sensitive data detected in .env")
         print("🔒 Running encryption...")
         
         try:
@@ -46,6 +60,10 @@ def check_env_encryption():
             
             # Stage the encrypted .env file
             subprocess.run(['git', 'add', '.env'])
+            
+            # Create a marker file to indicate encryption was done
+            Path('.env.encrypted').touch()
+            
             return 0
             
         except FileNotFoundError:
